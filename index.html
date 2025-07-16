@@ -1,36 +1,30 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
   <title>Розподіл на команди</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: sans-serif;
       text-align: center;
       padding-top: 100px;
-      background-color: #f0f0f0;
+      background: #f0f0f0;
     }
     h1 {
       font-size: 2em;
-      margin-bottom: 30px;
     }
     button {
-      font-size: 1.1em;
-      padding: 10px 25px;
       margin: 10px;
-      cursor: pointer;
+      font-size: 1.2em;
+      padding: 10px 30px;
+      border-radius: 10px;
       border: none;
-      border-radius: 8px;
-      background-color: #333;
+      background: #333;
       color: white;
-      transition: background-color 0.3s;
-    }
-    button:hover {
-      background-color: #555;
+      cursor: pointer;
     }
     #result {
-      margin-top: 40px;
+      margin-top: 30px;
       font-size: 1.5em;
       font-weight: bold;
     }
@@ -38,56 +32,47 @@
 </head>
 <body>
   <h1>Розподіл на команди</h1>
-  <button onclick="assignTeam()">Дізнатись</button>
-  <button onclick="resetTeam()">Скинути команду</button>
+  <button onclick="getTeam()">Дізнатись</button>
   <div id="result"></div>
 
   <script>
-    const teams = ['Синій', 'Червоний', 'Жовтий'];
+    const API_URL = "https://script.google.com/macros/s/AKfycbxxt8SJF_O3Hesc2vnVt7rGWWQ5D0gJRN_-ifavD2WxkZbItc_v2hN5WW0cXbjACuiEQg/exec";
     const colors = {
-      'Синій': '#007bff',
-      'Червоний': '#dc3545',
-      'Жовтий': '#ffc107'
+      "Синій": "#007bff",
+      "Червоний": "#dc3545",
+      "Жовтий": "#ffc107"
     };
 
-    const teamCounts = JSON.parse(localStorage.getItem('teamCounts')) || {
-      'Синій': 0,
-      'Червоний': 0,
-      'Жовтий': 0
-    };
+    function generateUID() {
+      return 'uid-' + Math.random().toString(36).substr(2, 9);
+    }
 
-    const savedTeam = localStorage.getItem('userTeam');
-    if (savedTeam) showTeam(savedTeam);
+    function getTeam() {
+      let uid = localStorage.getItem('teamUID');
+      if (!uid) {
+        uid = generateUID();
+        localStorage.setItem('teamUID', uid);
+      }
 
-    function assignTeam() {
-      if (localStorage.getItem('userTeam')) return;
-
-      const minTeam = Object.entries(teamCounts).reduce((min, current) =>
-        current[1] < min[1] ? current : min
-      )[0];
-
-      teamCounts[minTeam]++;
-      localStorage.setItem('teamCounts', JSON.stringify(teamCounts));
-      localStorage.setItem('userTeam', minTeam);
-
-      showTeam(minTeam);
+      fetch(`${API_URL}?uid=${uid}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.team) {
+            showTeam(data.team);
+          } else {
+            document.getElementById('result').textContent = "Помилка: " + data.error;
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          document.getElementById('result').textContent = "Помилка при з'єднанні.";
+        });
     }
 
     function showTeam(team) {
-      const resultDiv = document.getElementById('result');
-      resultDiv.textContent = `Ваша команда: ${team}`;
-      resultDiv.style.color = colors[team] || '#000';
-    }
-
-    function resetTeam() {
-      const currentTeam = localStorage.getItem('userTeam');
-      if (currentTeam && teamCounts[currentTeam] > 0) {
-        teamCounts[currentTeam]--;
-      }
-
-      localStorage.removeItem('userTeam');
-      localStorage.setItem('teamCounts', JSON.stringify(teamCounts));
-      document.getElementById('result').textContent = '';
+      const result = document.getElementById('result');
+      result.textContent = `Ваша команда: ${team}`;
+      result.style.color = colors[team] || '#000';
     }
   </script>
 </body>
