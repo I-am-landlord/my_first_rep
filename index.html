@@ -2,74 +2,164 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
-  <title>Розподіл на команди</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Оберіть свою команду</title>
   <style>
+    :root {
+      --red: #dc3545;
+      --blue: #007bff;
+      --yellow: #ffc107;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: sans-serif;
-      text-align: center;
-      padding-top: 100px;
-      background: #f0f0f0;
+      margin: 0;
+      padding: 0;
+      font-family: "Segoe UI", sans-serif;
+      background-color: #f4f6f8;
+      color: #222;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
     }
+
     h1 {
-      font-size: 2em;
+      margin-bottom: 30px;
+      font-size: clamp(1.5rem, 5vw, 2rem);
+      text-align: center;
     }
-    button {
-      margin: 10px;
-      font-size: 1.2em;
-      padding: 10px 30px;
-      border-radius: 10px;
+
+    .buttons-container {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      width: 100%;
+      max-width: 320px;
+    }
+
+    .team-btn {
+      padding: 14px;
+      font-size: 1.1rem;
       border: none;
-      background: #333;
-      color: white;
+      border-radius: 12px;
+      color: #fff;
+      font-weight: 500;
       cursor: pointer;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+      transition: transform 0.1s ease;
     }
+
+    .team-btn:hover {
+      transform: scale(1.03);
+    }
+
+    .red { background-color: var(--red); }
+    .blue { background-color: var(--blue); }
+    .yellow { background-color: var(--yellow); color: #000; }
+
     #result {
-      margin-top: 30px;
-      font-size: 1.5em;
+      margin-top: 40px;
+      font-size: 1.3rem;
+      text-align: center;
       font-weight: bold;
+      max-width: 90%;
+    }
+
+    .hidden {
+      display: none;
     }
   </style>
 </head>
 <body>
-  <h1>Розподіл на команди</h1>
-  <button onclick="getTeam()">Дізнатись</button>
+
+  <h1>Оберіть свою команду</h1>
+
+  <div class="buttons-container" id="buttons">
+    <button class="team-btn red" onclick="chooseTeam('Червоний')">Червоний</button>
+    <button class="team-btn blue" onclick="chooseTeam('Синій')">Синій</button>
+    <button class="team-btn yellow" onclick="chooseTeam('Жовтий')">Жовтий</button>
+  </div>
+
   <div id="result"></div>
 
   <script>
     const API_URL = "https://script.google.com/macros/s/AKfycbxxt8SJF_O3Hesc2vnVt7rGWWQ5D0gJRN_-ifavD2WxkZbItc_v2hN5WW0cXbjACuiEQg/exec";
+
     const colors = {
       "Синій": "#007bff",
       "Червоний": "#dc3545",
       "Жовтий": "#ffc107"
     };
 
-    function generateUID() {
-      return 'uid-' + Math.random().toString(36).substr(2, 9);
+    const savedTeam = localStorage.getItem('team');
+    if (savedTeam) {
+      showResult(savedTeam);
+      hideButtons();
     }
 
-    function getTeam() {
-      let uid = localStorage.getItem('teamUID');
-      if (!uid) {
-        uid = generateUID();
-        localStorage.setItem('teamUID', uid);
+    function chooseTeam(team) {
+      if (localStorage.getItem('team')) {
+        showResult(localStorage.getItem('team'));
+        hideButtons();
+        return;
       }
 
-      fetch(`${API_URL}?uid=${uid}`)
-      .then(res => res.json())
-      .then(data => {
-       if (data.team) showTeam(data.team);
-    else console.error(data.error);
-     })
-  .catch(err => {
-    console.error('Помилка зʼєднання:', err);
-  });
-      
+      let uid = localStorage.getItem('uid');
+      if (!uid) {
+        uid = 'uid-' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('uid', uid);
+      }
+
+      fetch(`${API_URL}?uid=${uid}&team=${encodeURIComponent(team)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.team) {
+            localStorage.setItem('team', data.team);
+            showResult(data.team);
+            hideButtons();
+          } else if (data.error === 'Team full') {
+            document.getElementById('result').textContent = 'Ця команда заповнена. Оберіть іншу.';
+          } else {
+            document.getElementById('result').textContent = 'Помилка: ' + data.error;
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          document.getElementById('result').textContent = 'Помилка зʼєднання.';
+        });
     }
 
-    function showTeam(team) {
+    function showResult(team) {
       const result = document.getElementById('result');
       result.textContent = `Ваша команда: ${team}`;
       result.style.color = colors[team] || '#000';
+    }
+
+    function hideButtons() {
+      document.getElementById('buttons').classList.add('hidden');
+    }
+
+    // Адмін-функція для скидання (через консоль)
+    function resetTeams(password) {
+      fetch(`${API_URL}?admin=${encodeURIComponent(password)}&reset=true`)
+        .then(res => res.text())
+        .then(data => {
+          if (data === 'Reset done') {
+            localStorage.clear();
+            document.getElementById('result').textContent = 'Результати скинуто';
+            document.getElementById('buttons').classList.remove('hidden');
+            console.log('✅ Дані очищено успішно');
+          } else {
+            console.error('❌ Невірний пароль або помилка:', data);
+          }
+        })
+        .catch(err => {
+          console.error('❌ Помилка зʼєднання:', err);
+        });
     }
   </script>
 </body>
